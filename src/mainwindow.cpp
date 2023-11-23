@@ -7,6 +7,8 @@
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 #include "settingFile.hpp"
 
@@ -16,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     initalSetting();
     initalWindow();
+    updateWords();
 }
 
 MainWindow::~MainWindow()
@@ -55,7 +58,6 @@ void MainWindow::saveAttribute(const QString &key, const QString &value)
         file.add(timeOfHM,obj);
     }
     file.save("data/"+timeOfYMD+".json");
-
 }
 
 void MainWindow::initalSetting()
@@ -65,6 +67,48 @@ void MainWindow::initalSetting()
         m_Info->load(":/json/info.json");
     else
         m_Info->load("info.json");
+}
+
+QJsonObject MainWindow::getWordsByDate(const QString &timeOfYMD)
+{
+    QJsonObject data;
+    settingFile file("data/"+timeOfYMD+".json");
+    if(!(file.isLoad()))
+        return data;
+    const QJsonObject& json=file.toJson();
+    for(const auto& i : json.keys())
+    {
+        const auto& wordsOfMinute=json.value(i).toObject();
+        for(const auto& j : wordsOfMinute.keys())
+        {
+            QJsonObject word;
+            QJsonArray arrayOfTime;
+            arrayOfTime.push_back(timeOfYMD+" "+i);
+            word.insert("time",arrayOfTime);
+            word.insert("explain",wordsOfMinute.value(j).toString());
+            data.insert(j,word);
+        }
+    }
+    return data;
+}
+
+void MainWindow::updateWords()
+{
+    QRegularExpression reg("\\d{4}-\\d{2}-\\d{2}");
+    QRegularExpressionValidator v(reg,0);
+    int pos=0;
+    QValidator::State result;
+    const auto& fileOfWords=m_Info->value("FileOfWords").toString();
+    for(auto& i : m_Info->keys())
+    {
+        pos=0;
+        result=v.validate(i,pos);
+        if(result==QValidator::State::Acceptable)
+        {
+            auto json=getWordsByDate(i);
+            saveWords(fileOfWords,json);
+        }
+    }
 }
 
 void MainWindow::initalWindow()
@@ -108,4 +152,46 @@ void saveFile(const QString &path,const QString& data)
     }
     else
         qDebug()<<"error","save \""+path+"\" is failed!";
+}
+
+void saveWords(const QString &path, const QJsonObject &words)
+{
+    /* 试图打开 path 路径下的 json 文件 */
+    settingFile file(path);
+    /* 若打开失败，则直接以 words 作为配置文件，并保存 */
+    if(!(file.isLoad()))
+    {
+        file.load(words);
+        file.save(path);
+        return;
+    }
+    /* 遍历 words，将所有单词追加到 file 中的 json 文件中 */
+    for(const auto& word : words.keys())
+    {
+        /* info 为单词 i 对应的值 */
+        auto info=file.value(word);
+        /* infoOfWord 对应单词信息 */
+        QJsonObject infoOfWord;
+        const auto& obj=words.value(word).toObject();
+        /* 若 info 不存在，则将 words 中的变量赋给它  */
+        if(info.isUndefined())
+            infoOfWord=obj;
+        /* 若 info 存在，则赋值给对应变量  */
+        else
+        {
+            infoOfWord=info.toObject();
+            auto arrayOfTime=infoOfWord.value("time").toArray();
+            /* 对于 time */
+            for(const auto& time : obj.value("time").toArray())
+            {
+                if(!(arrayOfTime.contains(time)))
+                    arrayOfTime.push_back(time);
+            }
+                
+            /* 更新 infoOfWord 中的 time  */
+            infoOfWord.insert("time",arrayOfTime);
+        }
+        file.add(word,infoOfWord);
+    }
+    file.save(path);
 }

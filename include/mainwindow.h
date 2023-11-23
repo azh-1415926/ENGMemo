@@ -31,8 +31,11 @@ signals:
 private:
     void initalWindow();
     void initalSetting();
+    QJsonObject getWordsByDate(const QString& timeOfYMD);
+    void updateWords();
 };
 
 void saveFile(const QString& path,const QString& data);
+void saveWords(const QString& path,const QJsonObject& words);
 
 #endif // MAINWINDOW_H
