@@ -1,3 +1,4 @@
 {
-    "FileOfWords":"words.json"
+    "FileOfWords":"words.json",
+    "DataDir":"data"
 }

@@ -29,6 +29,7 @@ MainWindow::~MainWindow()
 /* 保存属性的值，保存到 info.json 文件 */
 void MainWindow::saveAttribute(const QString &key, const QString &value)
 {
+    const QString& dataDir=m_Info->value("DataDir").toString();
     /* 获取当前时间 */
     QDateTime time=QDateTime::currentDateTime();
     /* 转化为 "yyyy-MM-dd" 格式的字符串，效果为 2023-01-01 */
@@ -36,13 +37,13 @@ void MainWindow::saveAttribute(const QString &key, const QString &value)
     /* 转化为 "hh:mm:ss" 格式的字符串，效果为 06:30 */
     QString timeOfHM=time.toString("hh:mm");
     /* 文件名为日期名+.json，并把该日期添加到 info.json */
-    m_Info->add(timeOfYMD,"data/"+timeOfYMD+".json");
+    m_Info->add(timeOfYMD,dataDir+"/"+timeOfYMD+".json");
     m_Info->save("info.json");
     /* 试图打开 data/日期.json */
     QDir dir(QDir::currentPath());
-    if(!dir.exists("data"))
-        dir.mkdir("data");
-    settingFile file("data/"+timeOfYMD+".json");
+    if(!dir.exists(dataDir))
+        dir.mkdir(dataDir);
+    settingFile file(dataDir+"/"+timeOfYMD+".json");
     /* 试图获取 json 文件中的 timeOfHM 关键字对应的单词列表 */
     auto words=file.value(timeOfHM);
     if(words.isUndefined())
@@ -57,7 +58,10 @@ void MainWindow::saveAttribute(const QString &key, const QString &value)
         obj.insert(key,value);
         file.add(timeOfHM,obj);
     }
-    file.save("data/"+timeOfYMD+".json");
+    file.save(dataDir+"/"+timeOfYMD+".json");
+    const auto& json=getWordsByDate(timeOfYMD);
+    const auto& fileOfWords=m_Info->value("FileOfWords").toString();
+    saveWords(fileOfWords,json);
 }
 
 void MainWindow::initalSetting()
@@ -72,7 +76,8 @@ void MainWindow::initalSetting()
 QJsonObject MainWindow::getWordsByDate(const QString &timeOfYMD)
 {
     QJsonObject data;
-    settingFile file("data/"+timeOfYMD+".json");
+    const QString& dataDir=m_Info->value("DataDir").toString();
+    settingFile file(dataDir+"/"+timeOfYMD+".json");
     if(!(file.isLoad()))
         return data;
     const QJsonObject& json=file.toJson();
